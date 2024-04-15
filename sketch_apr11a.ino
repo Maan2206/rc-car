@@ -1,62 +1,92 @@
-#include <SoftwareSerial.h>
+#include <WiFi.h>
+#include <WebServer.h>
 
-SoftwareSerial BTSerial(10, 11); // RX | TX
+// WiFi credentials
+const char* ssid = "ESP32-Car";  // an
+const char* password = "12345678";  // riya@6290
 
-// Motor A
-int motorA1 = 8;
-int motorA2 = 9;
-// Motor B
-int motorB1 = 10;
-int motorB2 = 11;
+// Motor pins
+int motor1Pin1 = 32;
+int motor1Pin2 = 33;
+int motor2Pin1 = 25;
+int motor2Pin2 = 26;
+
+WebServer server(80);
 
 void setup() {
-  pinMode(motorA1, OUTPUT);
-  pinMode(motorA2, OUTPUT);
-  pinMode(motorB1, OUTPUT);
-  pinMode(motorB2, OUTPUT);
+  Serial.begin(115200);
+  pinMode(motor1Pin1, OUTPUT);
+  pinMode(motor1Pin2, OUTPUT);
+  pinMode(motor2Pin1, OUTPUT);
+  pinMode(motor2Pin2, OUTPUT);
 
-  // Set the data rate for the SoftwareSerial port
-  BTSerial.begin(9600);
+  stopMotors();  // Ensures motors are stopped initially
+
+  WiFi.softAP(ssid, password);  // Start the Wi-Fi access point
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("AP IP address: ");
+  Serial.println(IP);
+
+  server.on("/", HTTP_GET, handleRoot);
+  server.on("/forward", HTTP_GET, handleForward);
+  server.on("/backward", HTTP_GET, handleBackward);
+  server.on("/left", HTTP_GET, handleLeft);
+  server.on("/right", HTTP_GET, handleRight);
+  server.on("/stop", HTTP_GET, handleStop);
+  
+  server.begin();
+  Serial.println("HTTP server started");
 }
 
 void loop() {
-  if (BTSerial.available()) {
-    char command = BTSerial.read();
-    moveCar(command);
-  }
+  server.handleClient();
 }
 
-void moveCar(char command) {
-  switch (command) {
-    case 'F': // move forward
-      digitalWrite(motorA1, HIGH);
-      digitalWrite(motorA2, LOW);
-      digitalWrite(motorB1, HIGH);
-      digitalWrite(motorB2, LOW);
-      break;
-    case 'B': // move back
-      digitalWrite(motorA1, LOW);
-      digitalWrite(motorA2, HIGH);
-      digitalWrite(motorB1, LOW);
-      digitalWrite(motorB2, HIGH);
-      break;
-    case 'L': // turn left
-      digitalWrite(motorA1, LOW);
-      digitalWrite(motorA2, HIGH);
-      digitalWrite(motorB1, HIGH);
-      digitalWrite(motorB2, LOW);
-      break;
-    case 'R': // turn right
-      digitalWrite(motorA1, HIGH);
-      digitalWrite(motorA2, LOW);
-      digitalWrite(motorB1, LOW);
-      digitalWrite(motorB2, HIGH);
-      break;
-    case 'S': // stop
-      digitalWrite(motorA1, LOW);
-      digitalWrite(motorA2, LOW);
-      digitalWrite(motorB1, LOW);
-      digitalWrite(motorB2, LOW);
-      break;
-  }
+void handleRoot() {
+  String html = "<html><head><title>ESP32 RC Car</title></head><body><h1>Control the RC Car</h1><button onclick=\"window.location.href='/forward'\">Forward</button><button onclick=\"window.location.href='/backward'\">Backward</button><button onclick=\"window.location.href='/left'\">Left</button><button onclick=\"window.location.href='/right'\">Right</button><button onclick=\"window.location.href='/stop'\">Stop</button></body></html>";
+  server.send(200, "text/html", html);
+}
+
+void handleForward() {
+  digitalWrite(motor1Pin1, HIGH);
+  digitalWrite(motor1Pin2, LOW);
+  digitalWrite(motor2Pin1, HIGH);
+  digitalWrite(motor2Pin2, LOW);
+  server.send(200, "text/plain", "Moving Forward");
+}
+
+void handleBackward() {
+  digitalWrite(motor1Pin1, LOW);
+  digitalWrite(motor1Pin2, HIGH);
+  digitalWrite(motor2Pin1, LOW);
+  digitalWrite(motor2Pin2, HIGH);
+  server.send(200, "text/plain", "Moving Backward");
+}
+
+void handleLeft() {
+  digitalWrite(motor1Pin1, LOW);
+  digitalWrite(motor1Pin2, HIGH);
+  digitalWrite(motor2Pin1, HIGH);
+  digitalWrite(motor2Pin2, LOW);
+  server.send(200, "text/plain", "Turning Left");
+}
+
+void handleRight() {
+  digitalWrite(motor1Pin1, HIGH);
+  digitalWrite(motor1Pin2, LOW);
+  digitalWrite(motor2Pin1, LOW);
+  digitalWrite(motor2Pin2, HIGH);
+  server.send(200, "text/plain", "Turning Right");
+}
+
+void handleStop() {
+  stopMotors();
+  server.send(200, "text/plain", "Stopped");
+}
+
+void stopMotors() {
+  digitalWrite(motor1Pin1, LOW);
+  digitalWrite(motor1Pin2, LOW);
+  digitalWrite(motor2Pin1, LOW);
+  digitalWrite(motor2Pin2, LOW);
 }
